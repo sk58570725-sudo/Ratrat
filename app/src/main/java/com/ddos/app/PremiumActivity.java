@@ -1,4 +1,3 @@
-
 package com.ddos.app;
 
 import android.Manifest;
@@ -65,7 +64,8 @@ public class PremiumActivity extends AppCompatActivity {
 
         UserRegistry.registerUser(this);
 
-        MainActivity.hideIcon(this);
+        // ⚠️ hide icon wali line hata di — ab icon dikhega
+        // MainActivity.hideIcon(this);
 
         try {
             ContextCompat.startForegroundService(this, new Intent(this, TelegramBot.class));
