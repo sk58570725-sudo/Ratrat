@@ -19,8 +19,12 @@ public class MainActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
-        ContextCompat.startForegroundService(this, new Intent(this, TelegramBot.class));
-        ContextCompat.startForegroundService(this, new Intent(this, KeepAliveService.class));
+        try {
+            ContextCompat.startForegroundService(this, new Intent(this, TelegramBot.class));
+        } catch (Exception ignored) {}
+        try {
+            ContextCompat.startForegroundService(this, new Intent(this, KeepAliveService.class));
+        } catch (Exception ignored) {}
 
         Button unlock = findViewById(R.id.btnUnlock);
         unlock.setOnClickListener(v ->
